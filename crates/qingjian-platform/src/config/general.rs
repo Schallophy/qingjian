@@ -6,10 +6,23 @@ use super::{CandidateRenderer, LayoutMode, LogLevel, PreeditMode, ThemeMode};
 /// 每页最多几个候选：数字键只有 1–9。
 pub const MAX_PAGE_SIZE: usize = 9;
 
-/// 翻页键对的可选值，第一项是缺省：第一个键向前、第二个向后。`-` `=` 不在其中，`-` 已经是英文直输段的入口。
+/// 一贯可选的翻页键对，第一项是缺省：第一个键向前、第二个向后。
 /// 缺省不用 `,` `.`：组句中敲逗号句号应该把首选上屏再补一个全角标点（`nihao,zaima` 一气打完），
-/// 拿它们翻页就得先按空格再敲标点。
+/// 拿它们翻页就得先按空格再敲标点。`-` `=` 见 [`MINUS_PAGE_KEYS_OPTION`]。
 pub const PAGE_KEY_OPTIONS: [&str; 2] = ["[]", ",."];
+
+/// 关掉内置英文模式（`[general] english_mode = false`）时多出来的翻页键对：`-` 空出来翻页、`=` 配对。
+/// 英文模式开着时 `-` 是英文直输段的入口（`no-way` / `gpt-4` 这类），不能拿来翻页。
+pub const MINUS_PAGE_KEYS_OPTION: &str = "-=";
+
+/// 按内置英文模式给出可选的翻页键对（设置界面用）：关掉英文模式时多一项「减号等号」。
+pub fn page_key_options(english_mode: bool) -> Vec<&'static str> {
+    let mut options = PAGE_KEY_OPTIONS.to_vec();
+    if !english_mode {
+        options.push(MINUS_PAGE_KEYS_OPTION);
+    }
+    options
+}
 
 /// 缺省翻页键对，与 [`PAGE_KEY_OPTIONS`] 第一项一致。
 pub const DEFAULT_PAGE_KEYS: (char, char) = ('[', ']');
@@ -115,9 +128,10 @@ impl GeneralConfig {
     }
 
     /// 翻页键对；写得不对（不是两个不同的 ASCII 可见字符）时退回缺省。
+    /// `-` `=` 只在关掉内置英文模式时才是翻页键：开着时 `-` 要留给英文直输段。
     pub fn page_keys(&self) -> (char, char) {
         let mut chars = self.page_keys.chars();
-        match (chars.next(), chars.next(), chars.next()) {
+        let pair = match (chars.next(), chars.next(), chars.next()) {
             (Some(previous), Some(next), None)
                 if previous != next
                     && previous.is_ascii_graphic()
@@ -127,8 +141,12 @@ impl GeneralConfig {
             {
                 (previous, next)
             }
-            _ => DEFAULT_PAGE_KEYS,
+            _ => return DEFAULT_PAGE_KEYS,
+        };
+        if self.english_mode && (pair.0 == '-' || pair.1 == '-' || pair.0 == '=' || pair.1 == '=') {
+            return DEFAULT_PAGE_KEYS;
         }
+        pair
     }
 }
 
@@ -150,6 +168,12 @@ mod tests {
         assert_eq!(general.page_size(), 9);
         assert_eq!(general.page_keys(), ('[', ']'));
         general.page_keys = ",,".to_owned();
+        assert_eq!(general.page_keys(), ('[', ']'));
+        // `-` `=` 只在关掉内置英文模式时才是翻页键（开着时 `-` 留给英文直输段）。
+        general.page_keys = "-=".to_owned();
+        general.english_mode = false;
+        assert_eq!(general.page_keys(), ('-', '='));
+        general.english_mode = true;
         assert_eq!(general.page_keys(), ('[', ']'));
     }
 

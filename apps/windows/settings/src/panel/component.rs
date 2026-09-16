@@ -135,8 +135,11 @@ impl Component for Settings {
             }
 
             // 快捷键页
-            Message::PageKeys(Some(i)) if i < shortcut::PAGE_KEYS.len() => {
-                self.save("general", "page_keys", shortcut::PAGE_KEYS[i].1);
+            Message::PageKeys(Some(i)) => {
+                let options = shortcut::page_keys(self.config.general.english_mode);
+                if let Some((_, value)) = options.get(i) {
+                    self.save("general", "page_keys", *value);
+                }
             }
             Message::ModeExpression(Some(i)) if i < shortcut::MODE_KEYS.len() => {
                 self.save("shortcut", "expression", shortcut::MODE_KEYS[i]);

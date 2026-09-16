@@ -28,7 +28,10 @@ pub use apps::{
 };
 pub use candidate_renderer::CandidateRenderer;
 pub use dictionaries::{DEFAULT_DOMAINS, DictionariesConfig};
-pub use general::{DEFAULT_PAGE_KEYS, GeneralConfig, MAX_PAGE_SIZE, PAGE_KEY_OPTIONS};
+pub use general::{
+    DEFAULT_PAGE_KEYS, GeneralConfig, MAX_PAGE_SIZE, MINUS_PAGE_KEYS_OPTION, PAGE_KEY_OPTIONS,
+    page_key_options,
+};
 pub use key_combo::KeyCombo;
 pub use layout_mode::LayoutMode;
 pub use log_level::LogLevel;
@@ -168,7 +171,8 @@ pub const TEMPLATE: &str = concat!(
 learning_language = "en"
 # 每页候选数（1–9）
 page_size = 9
-# 翻页键对：前一个上一页、后一个下一页。可选 "[]" 或 ",."；选 ",." 的话组句中敲逗号句号是翻页而不是上屏加标点
+# 翻页键对：前一个上一页、后一个下一页。可选 "[]" 或 ",."；关掉内置英文模式（english_mode = false）后还可选 "-="（这时 `-` 不再进英文直输段）
+# 选 ",." 的话组句中敲逗号句号是翻页而不是上屏加标点
 page_keys = "[]"
 # 候选窗口外观：system 跟随系统 / light 浅色 / dark 深色
 theme = "system"

@@ -7,8 +7,22 @@ use windows_reactor::*;
 use crate::panel::controls::{field, index_of, page};
 use crate::panel::{Message, Settings};
 
-/// 翻页键对：界面名 + 配置写法。
-pub(crate) const PAGE_KEYS: [(&str, &str); 2] = [("方括号 [ ]", "[]"), ("逗号句号 , .", ",.")];
+/// 翻页键对的界面名。
+fn page_key_label(value: &str) -> &'static str {
+    match value {
+        ",." => "逗号句号 , .",
+        "-=" => "减号等号 - =",
+        _ => "方括号 [ ]",
+    }
+}
+
+/// 翻页键对选项（界面名 + 配置写法）：关掉内置英文模式时多一项「减号等号」（`-` 空出来翻页）。
+pub(crate) fn page_keys(english_mode: bool) -> Vec<(&'static str, &'static str)> {
+    qingjian_platform::page_key_options(english_mode)
+        .into_iter()
+        .map(|value| (page_key_label(value), value))
+        .collect()
+}
 
 /// 可当模式键的字母（与 Core `ModeKeys::CANDIDATES` 一致）。
 pub(crate) const MODE_KEYS: [&str; 3] = ["v", "u", "i"];
@@ -48,13 +62,17 @@ fn modifier_combo(current: Modifiers, callback: Callback<Option<usize>>) -> Comb
 
 pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> View {
     let s = &settings.config.shortcut;
+    let page_key_options = page_keys(settings.config.general.english_mode);
     let rows = [
         field(
             "翻页键",
-            "选「, .」时组句中敲逗号句号是翻页，不再是上屏加标点。",
+            "选「, .」时组句中敲逗号句号是翻页，不再是上屏加标点。关掉内置英文模式后可选「- =」，这时 `-` 不再进英文直输段。",
             ComboBox::new()
-                .items_source(PAGE_KEYS.iter().map(|(label, _)| *label))
-                .selected_index(index_of(&PAGE_KEYS, &settings.config.general.page_keys))
+                .items_source(page_key_options.clone().into_iter().map(|(label, _)| label))
+                .selected_index(index_of(
+                    &page_key_options,
+                    &settings.config.general.page_keys,
+                ))
                 .on_selection_changed(context.callback(Message::PageKeys)),
         ),
         field(
