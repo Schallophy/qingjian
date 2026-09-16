@@ -35,6 +35,28 @@ fn custom_positions_survive_normal_candidates_and_cloud() {
     assert!(e.composition().text().is_empty());
 }
 
+/// 自定义短语与词库候选同名时，词库那条让位，只留固定位置上的自定义文本。
+#[test]
+fn custom_phrase_replaces_a_same_text_candidate() {
+    let mut e = engine();
+    e.set_input("kai");
+    let before = texts_of(&e);
+    assert_eq!(
+        before.iter().filter(|text| *text == "开").count(),
+        1,
+        "词库里 kai 的候选只有一个开：{before:?}"
+    );
+
+    e.set_custom_phrases(vec![phrase("kai", 1, "开")]).unwrap();
+    let after = texts_of(&e);
+    assert_eq!(
+        after.iter().filter(|text| *text == "开").count(),
+        1,
+        "同名候选不该重复：{after:?}"
+    );
+    assert_eq!(after[0], "开");
+}
+
 #[test]
 fn custom_conflicts_reject_update_and_disabled_rules_stay_disabled() {
     let mut e = engine();

@@ -65,6 +65,20 @@ pub(crate) enum Message {
     RemoveUserDict(String),
     ImportDictionary,
 
+    // 自定义短语页
+    /// 新规则输入码框里的文字。
+    PhraseCode(String),
+    /// 新规则文本框里的文字。
+    PhraseText(String),
+    /// 新规则的候选位置（下拉下标，0 = 第 1 位）。
+    PhrasePosition(Option<usize>),
+    /// 把当前表单加进规则列表。
+    PhraseAdd,
+    /// 开关某条规则（下标 + 新值）。
+    PhraseToggle(usize, bool),
+    /// 删除某条规则（下标）。
+    PhraseRemove(usize),
+
     // 高级页
     VerboseLog(bool),
     InputLog(bool),

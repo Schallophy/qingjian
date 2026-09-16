@@ -188,6 +188,9 @@ fn main() {
     engine.set_shuangpin(config.general.shuangpin());
     engine.set_zhuyin_mode(config.general.zhuyin);
     engine.set_mode_keys(config.shortcut.mode);
+    if let Err(error) = engine.set_custom_phrases(config.custom_phrases.clone()) {
+        tracing::warn!(%error, "自定义短语不合法，忽略");
+    }
     engine.log_session(env!("CARGO_PKG_VERSION"), "windows");
     dispatch::attach_cloud(&mut engine, &config.predict);
     let router_config = RouterConfig::from(&config);

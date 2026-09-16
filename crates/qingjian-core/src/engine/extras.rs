@@ -12,7 +12,7 @@ impl Engine {
                 .any(|p| p.enabled && p.code == self.composition.scope())
     }
 
-    /// 所有普通候选完成排序后按输入码固定位置。
+    /// 所有普通候选完成排序后按输入码固定位置。同名候选让位：同一个词只留自定义的这条。
     pub(super) fn insert_custom_phrases(&self, items: &mut Vec<Candidate>) {
         if self.english_mode {
             return;
@@ -24,6 +24,7 @@ impl Engine {
             .collect();
         phrases.sort_by_key(|p| p.position);
         for phrase in phrases {
+            items.retain(|c| c.text != phrase.text);
             items.insert(
                 (phrase.position - 1).min(items.len()),
                 Candidate {

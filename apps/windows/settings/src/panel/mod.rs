@@ -16,7 +16,7 @@ use windows_reactor::*;
 use self::cloud_status::CloudStatus;
 pub(crate) use self::message::Message;
 use self::pages::{
-    about, advanced, candidates, cloud, dictionaries, fuzzy, general, shortcut, usage,
+    about, advanced, candidates, cloud, dictionaries, fuzzy, general, phrases, shortcut, usage,
 };
 
 /// 左侧标签固定宽度，让各行控件对齐。
@@ -41,6 +41,12 @@ pub(crate) struct Settings {
 
     /// 「字体」框里正在敲的文字；`None` 显示配置里的值。
     font_query: Option<String>,
+
+    /// 「自定义短语」页：新规则的输入码 / 文本 / 候选位置，与最近一次保存的错误。
+    pub(super) phrase_code: String,
+    pub(super) phrase_text: String,
+    pub(super) phrase_position: usize,
+    pub(super) phrase_error: String,
 }
 
 impl Settings {
@@ -80,6 +86,37 @@ impl Settings {
         }
     }
 
+    /// 落盘自定义短语列表；校验失败把错误留在页上，不改文件。
+    fn save_phrases(&mut self, phrases: &[qingjian_core::CustomPhrase]) {
+        match Config::set_custom_phrases(&self.path, phrases) {
+            Ok(()) => {
+                self.phrase_error.clear();
+                self.reload();
+            }
+            Err(error) => self.phrase_error = error,
+        }
+    }
+
+    /// 把「添加规则」表单里的值追加成一条短语；失败（输入码不合法 / 位置被占）显示错误。
+    fn add_phrase(&mut self) {
+        let mut phrases = self.config.custom_phrases.clone();
+        phrases.push(qingjian_core::CustomPhrase {
+            code: self.phrase_code.trim().to_owned(),
+            text: self.phrase_text.clone(),
+            position: self.phrase_position,
+            enabled: true,
+        });
+        match Config::set_custom_phrases(&self.path, &phrases) {
+            Ok(()) => {
+                self.phrase_code.clear();
+                self.phrase_text.clear();
+                self.phrase_error.clear();
+                self.reload();
+            }
+            Err(error) => self.phrase_error = error,
+        }
+    }
+
     fn page_content(&self, context: &mut ViewContext<Self>) -> View {
         match self.page.as_str() {
             "candidates" => candidates::view(self, context),
@@ -87,6 +124,7 @@ impl Settings {
             "cloud" => cloud::view(self, context),
             "fuzzy" => fuzzy::view(self, context),
             "dictionaries" => dictionaries::view(self, context),
+            "phrases" => phrases::view(self, context),
             "usage" => usage::view(self, context),
             "advanced" => advanced::view(self, context),
             "about" => about::view(self, context),

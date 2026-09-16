@@ -25,6 +25,10 @@ impl Component for Settings {
             cloud_status: CloudStatus::Idle,
             families: qingjian_render::system_fonts::families(),
             font_query: None,
+            phrase_code: String::new(),
+            phrase_text: String::new(),
+            phrase_position: 1,
+            phrase_error: String::new(),
         }
     }
 
@@ -197,6 +201,29 @@ impl Component for Settings {
                 self.reload();
             }
 
+            // 自定义短语页
+            Message::PhraseCode(text) => self.phrase_code = text,
+            Message::PhraseText(text) => self.phrase_text = text,
+            Message::PhrasePosition(Some(index)) => {
+                self.phrase_position = (index + 1).clamp(1, 9);
+            }
+            Message::PhrasePosition(None) => {}
+            Message::PhraseAdd => self.add_phrase(),
+            Message::PhraseToggle(index, on) => {
+                let mut phrases = self.config.custom_phrases.clone();
+                if let Some(phrase) = phrases.get_mut(index) {
+                    phrase.enabled = on;
+                    self.save_phrases(&phrases);
+                }
+            }
+            Message::PhraseRemove(index) => {
+                let mut phrases = self.config.custom_phrases.clone();
+                if index < phrases.len() {
+                    phrases.remove(index);
+                    self.save_phrases(&phrases);
+                }
+            }
+
             // 高级页
             Message::VerboseLog(on) => {
                 let level = if on { LogLevel::Debug } else { LogLevel::Info };
@@ -254,6 +281,7 @@ impl Component for Settings {
             item("cloud", "云服务", Symbol::World),
             item("fuzzy", "模糊音", Symbol::Audio),
             item("dictionaries", "词库", Symbol::Library),
+            item("phrases", "自定义短语", Symbol::Edit),
             item("usage", "统计", Symbol::List),
             item("advanced", "高级", Symbol::Repair),
             item("about", "关于", Symbol::Help),

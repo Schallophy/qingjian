@@ -147,6 +147,9 @@ IMK 输入法，源码按 `app / host / imk / candidates / menubar / preferences
 （它的转换模式变化由 conversion compartment 回调同步成中 / 英），避免两边各切一次互相抵消。四条切换入口都汇到
 `service/mode.rs::set_english_mode` 一处拦住；状态条点击在 Server 侧（`dispatch/status/mod.rs`）按同一项拦，
 设置界面在 `settings/src/panel/pages/general.rs`。
+自定义短语（`[[custom_phrases]]`）两端共用 Core 的匹配（`engine::extras::insert_custom_phrases`，同名候选让位），
+Windows 侧 Server 在启动（`main.rs`）与热加载（`dispatch/reload`）时调 `Engine::set_custom_phrases`，编辑界面在
+`settings/src/panel/pages/phrases.rs`（列表 + 添加表单，写回 `Config::set_custom_phrases`）。
 
 ## assets
 

@@ -108,6 +108,12 @@ impl Router {
         self.engine.set_shuangpin(config.general.shuangpin());
         self.engine.set_zhuyin_mode(config.general.zhuyin);
         self.engine.set_mode_keys(config.shortcut.mode);
+        if let Err(error) = self
+            .engine
+            .set_custom_phrases(config.custom_phrases.clone())
+        {
+            tracing::warn!(%error, "自定义短语不合法，忽略");
+        }
         let previous = self.config.render_settings();
         self.config = RouterConfig::from(config);
         let settings = self.config.render_settings();
