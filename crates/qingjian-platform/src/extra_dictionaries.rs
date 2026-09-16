@@ -17,6 +17,14 @@ pub fn list(dir: &Path) -> Vec<(String, PathBuf)> {
     let mut files: Vec<(String, usize, PathBuf)> = entries
         .filter_map(Result::ok)
         .map(|e| e.path())
+        // macOS 打 tar 时会给每个文件配一份 AppleDouble 元数据（`._animals.qj`），扩展名同样是 qj，
+        // 被当词库列出来只会在设置页标一片「文件损坏」；点开头的都跳过。
+        .filter(|path| {
+            !path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.starts_with('.'))
+        })
         .filter_map(|p| {
             let extension = p.extension()?.to_str()?;
             let rank = EXTENSIONS.iter().position(|e| *e == extension)?;
@@ -88,7 +96,15 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("qingjian-extra-dicts-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        for name in ["idioms.qj", "idioms.tsv", "food.tsv", "notes.txt"] {
+        for name in [
+            "idioms.qj",
+            "idioms.tsv",
+            "food.tsv",
+            "notes.txt",
+            // macOS 的 AppleDouble 元数据：扩展名也是 qj，但不该被当成词库列出来。
+            "._idioms.qj",
+            "._animals.qj",
+        ] {
             std::fs::write(dir.join(name), b"").unwrap();
         }
 
