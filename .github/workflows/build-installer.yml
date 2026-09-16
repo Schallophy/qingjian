@@ -1,0 +1,74 @@
+# 个人分支用的安装包构建：把 release.yml 的 windows job 抽出来，去掉发版门禁与 Release 创建，
+# 改成 workflow_dispatch + artifact 上传，方便本地网络到不了 NuGet 时用 GitHub runner 打包。
+# 与发版一致：产品数据从官方 data Release 取并按 SHA256SUMS 校验；Inno Setup 钉 7.1.0；
+# QINGJIAN_UIACCESS=0 由 installer\build.ps1 默认给出（未签名，Server 才能在任何机器上启动）。
+name: build-installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [personal]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-installer-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  windows-installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        with:
+          toolchain: 1.96.0
+          # 安装包另带一份 32 位 TSF DLL（企业微信 / WPS 这类 32 位应用只能加载它）
+          targets: i686-pc-windows-msvc
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+      # 官方 data Release 是公开的：直接 curl，不依赖 token 跨仓库取。
+      - name: Fetch product data
+        shell: bash
+        run: |
+          mkdir -p data/generated data/model
+          base='https://github.com/qingjian-team/qingjian/releases/download/data'
+          curl -fsSL -o data/SHA256SUMS "$base/SHA256SUMS"
+          curl -fsSL -o data/qingjian-data.tar.gz "$base/qingjian-data.tar.gz"
+          curl -fsSL -o data/model.qjm "$base/model.qjm"
+          (cd data && grep -E 'qingjian-data.tar.gz|model.qjm' SHA256SUMS | sha256sum -c -)
+          tar -xzf data/qingjian-data.tar.gz -C data/generated
+          mv data/model.qjm data/model/
+          ls -la data/generated data/model
+
+      # 与开发机同版本（7.1.0，自带简体中文翻译）；钉死 GitHub Release 上的文件并核对 SHA-256。
+      - name: Install Inno Setup 7.1.0
+        shell: pwsh
+        run: |
+          $url = 'https://github.com/jrsoftware/issrc/releases/download/is-7_1_0/innosetup-7.1.0-x64.exe'
+          $expected = '0362a383ed217d4c4239b5933866dd96d3eb2102737da92f80f6057a4b40df2f'
+          $exe = Join-Path $env:RUNNER_TEMP 'innosetup.exe'
+          Invoke-WebRequest -Uri $url -OutFile $exe
+          $actual = (Get-FileHash -Path $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) { throw "Inno Setup 安装程序 SHA-256 不符：$actual" }
+          Start-Process -FilePath $exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-' -Wait
+          & "${env:ProgramFiles}\Inno Setup 7\ISCC.exe" --version
+
+      - name: Build installer
+        shell: pwsh
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File apps\windows\installer\build.ps1
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: Qingjian-Setup
+          path: target/installer/*.exe
+          if-no-files-found: error
